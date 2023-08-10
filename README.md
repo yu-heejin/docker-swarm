@@ -15,20 +15,12 @@
 | 이름 | 설명 |
 | --- | --- |
 | 노드(Node) | 클러스터를 구성하는 개별 도커 서버를 의미한다. |
-| 매니저 노드(Manager Node) | • 클러스터 관리와 컨테이너 오케스트레이션을 담당한다.
-◦ 쿠버네티스의 마스터 노드와 같은 역할이라고 할 수 있다. |
-| 워커 노드(Worker Node) | • 컨테이너 기반 서비스들이 실제 구동되는 노드를 의미한다.
-◦ 쿠버네티스와 다른 점이 있다면, Docker swarm에서는 매니저 노드도 기본적으로 워커 노드의 역할을 같이 수행할 수 있다.
-◦ 스케줄링을 임의로 막는 것도 가능하다. |
-| 스택(Stack) | • 하나 이상의 서비스(Service)로 구성된 다중 컨테이너 애플리케이션 묶음을 의미한다.
-◦ 도커 컴포즈와 유사한 양식의 yaml 파일로 스택 배포를 진행한다. |
-| 서비스(Service) | • 노드에서 수행하고자 하는 작업들을 정의해놓은 것으로, 클러스터 안에서 구동시킬 컨테이너 묶음을 정의한 객체이다.
-◦ 도커 스웜에서의 기본적인 배포 단위로 취급된다.
-◦ 하나의 서비스는 하나의 이미지를 기반으로 구동되며, 이들 각각이 전체 애플리케이션의 구동에 필요한 개별적인 마이크로서비스(microservice)로 기능한다. |
-| 테스크(Task) | • 클러스터를 통해 서비스를 구동시킬 때, 도커 스웜은 해당 서비스의 요구 사항에 맞춰 실제 마이크로서비스가 동작할 도커 컨테이너를 구성하여 노드에 분배하는데, 이를 테스크라고 한다.
-◦ 하나의 서비스는 지정된 복제본(replica) 수에 따라 여러 개의 테스크를 가질 수 있으며, 각각의 테스크에는 하나씩의 컨테이너가 포함된다. |
-| 스케줄링(Scheduling) | • 서비스 명세에 따라 테스크를 노드에 분배하는 작업을 의미한다.
-◦ 2022년 8월 기준으로 도커 스웜에서는 오직 균등 분배(spread) 방식만 지원하고 있다. |
+| 매니저 노드(Manager Node) | • 클러스터 관리와 컨테이너 오케스트레이션을 담당한다. ◦ 쿠버네티스의 마스터 노드와 같은 역할이라고 할 수 있다. |
+| 워커 노드(Worker Node) | • 컨테이너 기반 서비스들이 실제 구동되는 노드를 의미한다. ◦ 쿠버네티스와 다른 점이 있다면, Docker swarm에서는 매니저 노드도 기본적으로 워커 노드의 역할을 같이 수행할 수 있다. ◦ 스케줄링을 임의로 막는 것도 가능하다. |
+| 스택(Stack) | • 하나 이상의 서비스(Service)로 구성된 다중 컨테이너 애플리케이션 묶음을 의미한다. ◦ 도커 컴포즈와 유사한 양식의 yaml 파일로 스택 배포를 진행한다. |
+| 서비스(Service) | • 노드에서 수행하고자 하는 작업들을 정의해놓은 것으로, 클러스터 안에서 구동시킬 컨테이너 묶음을 정의한 객체이다. ◦ 도커 스웜에서의 기본적인 배포 단위로 취급된다. ◦ 하나의 서비스는 하나의 이미지를 기반으로 구동되며, 이들 각각이 전체 애플리케이션의 구동에 필요한 개별적인 마이크로서비스(microservice)로 기능한다. |
+| 테스크(Task) | • 클러스터를 통해 서비스를 구동시킬 때, 도커 스웜은 해당 서비스의 요구 사항에 맞춰 실제 마이크로서비스가 동작할 도커 컨테이너를 구성하여 노드에 분배하는데, 이를 테스크라고 한다. ◦ 하나의 서비스는 지정된 복제본(replica) 수에 따라 여러 개의 테스크를 가질 수 있으며, 각각의 테스크에는 하나씩의 컨테이너가 포함된다. |
+| 스케줄링(Scheduling) | • 서비스 명세에 따라 테스크를 노드에 분배하는 작업을 의미한다. ◦ 2022년 8월 기준으로 도커 스웜에서는 오직 균등 분배(spread) 방식만 지원하고 있다. |
 
 ## 사용 포트
 
@@ -301,6 +293,7 @@ verify: Service converged
 ```
 
 - `docker service scale` 명령어를 사용하면 **배포된 서비스의 레플리카 수를 조정할 수 있다.**
+- 단, 도커 스웜은 쿠버네티스와 같은 오토 스케일링 기능을 제공하지 않는다.
 
 ```bash
 ubuntu@ip-:~$ docker service ps helloworld
@@ -314,12 +307,58 @@ z88qhti23kao   helloworld.5   alpine:latest   docker-swarm-1    Running         
 
 - `docker service ps ${service_name}`를 입력하면 각 노드마다 업데이트된 작업 목록을 볼 수 있다.
 
+## 서비스 로그 확인하기
+
 ```bash
-ubuntu@docker-swarm-1:~$ docker ps
-CONTAINER ID   IMAGE           COMMAND             CREATED              STATUS              PORTS     NAMES
-91b1c24deb3f   alpine:latest   "ping docker.com"   About a minute ago   Up About a minute             helloworld.5.z88qhti23kaobp878e27ievnx
-84c745434f77   alpine:latest   "ping docker.com"   8 minutes ago        Up 8 minutes                  helloworld.1.xr6gphsn80x6sne1gw7dpqan4
+docker service logs {option} {service_name}
 ```
+
+```bash
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=763 ttl=46 time=2.435 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=764 ttl=46 time=2.361 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=765 ttl=46 time=2.339 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=766 ttl=46 time=2.409 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=767 ttl=46 time=2.450 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=768 ttl=46 time=2.373 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=769 ttl=46 time=2.393 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=770 ttl=46 time=2.464 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=771 ttl=46 time=2.368 ms
+helloworld.1.xr6gphsn80x6@ip-    | 64 bytes from 141.193.213.21: seq=772 ttl=46 time=2.365 ms
+```
+
+- 위 명령어를 입력하면 `ping docker.com` 서비스가 작동하는 것을 확인할 수 있다.
+- 설정할 수 있는 옵션으로는 다음과 같다.
+    - `--follow`, `-f` : 로그를 콘솔에 실시간으로 계속 스트리밍하여 출력한다.
+    - `--tail`, `-n` : 로그를 가장 최근 것으로부터 몇개까지 출력시킬지 숫자로 정한다.
+        - 만약 음수 또는 all로 지정할 경우 전체 로그를 출력한다.
+    - `--since` : 지정된 시각 이후의 로그만 출력한다.
+    - `--timestamp`, `-t` : 로그의 각 줄마다 타임 스탬프를 추가하여 출력시킨다.
+
+## 실행중인 서비스 삭제하기
+
+```bash
+ubuntu@ip-:~$ docker service rm helloworld
+helloworld
+```
+
+- 관리자 노드에서 다음과 같은 명령어를 입력하면 서비스를 제거할 수 있다.
+- **작업 컨테이너를 정리하는데 일정 시간이 걸리기 때문에 삭제 하고 바로 조회 시 아직 컨테이너 목록에 존재할 수 있다.**
+    
+    ```bash
+    docker ps
+    CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS     NAMES
+    db1651f50347        alpine:latest       "ping docker.com"        44 minutes ago      Up 46 seconds                 helloworld.5.9lkmos2beppihw95vdwxy1j3w
+    43bf6e532a92        alpine:latest       "ping docker.com"        44 minutes ago      Up 46 seconds                 helloworld.3.a71i8rp6fua79ad43ycocl4t2
+    5a0fb65d8fa7        alpine:latest       "ping docker.com"        44 minutes ago      Up 45 seconds                 helloworld.2.2jpgensh7d935qdc857pxulfr
+    afb0ba67076f        alpine:latest       "ping docker.com"        44 minutes ago      Up 46 seconds                 helloworld.4.1c47o7tluz7drve4vkm2m5olx
+    688172d3bfaa        alpine:latest       "ping docker.com"        45 minutes ago      Up About a minute             helloworld.1.74nbhb3fhud8jfrhigd7s29we
+    
+    docker ps
+    CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS     NAMES
+    ```
+    
+- 서비스가 삭제되면 서비스에 포함된 모든 테스크(컨테이너)가 노드에서 함께 제거된다.
+    - 단, 서비스에서 도커 볼륨을 마운트해서 사용하고 있었다면, 해당 볼륨은 별도로 삭제하지 않는 한 클러스터에 남아있게 된다.
 
 ## 발생했던 오류
 
