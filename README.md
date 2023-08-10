@@ -7,8 +7,8 @@
 
 > EC2 3개를 사용하여 Docker swarm 실습을 진행했습니다.
 > 
-- worker host: docker-swarm-2, docker-swarm-3
-- manager host: docker-swarm-1
+- worker host: docker-swarm-1, docker-swarm-2
+- manager host: docker-swarm-3
 
 ## 주요 용어
 
@@ -46,7 +46,7 @@ sudo ufw allow {port}
 ### 매니저 노드 생성하기
 
 ```bash
-docker swarm init --advertise-addr { public_ip }
+docker swarm init --advertise-addr { private_ip }
 ```
 
 - 매니저 호스트에 접속해 위 명령어를 입력해야한다.
@@ -54,7 +54,7 @@ docker swarm init --advertise-addr { public_ip }
 ### 워커 노드 생성하기
 
 ```bash
-docker swarm join --token { token } { public_ip }:2377
+docker swarm join --token { token } { private_ip }:2377
 # This node joined a swarm as a worker.
 ```
 
@@ -62,10 +62,10 @@ docker swarm join --token { token } { public_ip }:2377
 
 ```bash
 ubuntu@ip-:~$ docker node ls
-ID                            HOSTNAME           STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
-dueqzu3vaew408t8awg6xe854     ip-                Ready     Active                          24.0.5
-gb2bdfnxbqhcrqm4gqgtyxlj2 *   ip-                Ready     Active         Leader           24.0.5
-dp24k5afwv6nprh0fqrty6uda     ip-                Ready     Active                          24.0.5
+ID                            HOSTNAME          STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+4ekbnwh2ayfy2qo9alcarsy5q     ip-               Ready     Active                          24.0.5
+f4ag8t9kczcn0sg0wzexfac3x *   ip-               Ready     Active         Leader           24.0.5
+js2iuhm3i5r7qpnsrxs15ojc1     ip-               Ready     Active                          24.0.5
 ```
 
 - 매니저 호스트에 접속해 list를 확인하면 다음과 같이 워커 노드가 추가된 것을 확인할 수 있다.
@@ -119,27 +119,28 @@ dp24k5afwv6nprh0fqrty6uda     ip-                Ready     Active               
 docker service create --replicas 1 --name helloworld alpine ping docker.com
 ```
 
-- `ping docker.com` 명령어를 수행하는 컨테이너 서비스를 생성한다.
-- 서비스 생성은 매니저 호스트에서만 사용할 수 있다.
+- `ping docker.com` 명령어를 수행하는 컨테이너 **서비스를 생성한다.**
+- 서비스 생성은 **매니저 호스트에서만 사용할 수 있다.**
 - 옵션은 다음과 같다.
     - `--name`: 서비스의 이름을 지정한다.
     - `--replicas`: 서비스를 구성할 테스크(컨테이너)의 수를 지정한다. **지정된 숫자 만큼 테스크가 클러스터 노드에 배치된다.**
     - `alpine ping docker.com`: 테스크에 포함시킬 이미지 정보를 지정한다.
 
 ```bash
-ubuntu@ip-:~$ docker service create --replicas 1 --name hello alpine ping docker.com
-zpume3y3ng7rn67simnlvbwz5
-overall progress: 1 out of 1 tasks 
-1/1: running   [==================================================>] 
-verify: Service converged 
-
 ubuntu@ip-:~$ docker service ls
 ID             NAME          MODE         REPLICAS   IMAGE            PORTS
 zpume3y3ng7r   hello         replicated   1/1        alpine:latest    
-
 ```
 
 - `docker service ls`를 입력하면 생성된 서비스 목록을 볼 수 있다.
+
+```bash
+Error response from daemon: This node is not a swarm manager. 
+Worker nodes can't be used to view or modify cluster state. 
+Please run this command on a manager node or promote the current node to a manager.
+```
+
+- 만약 워커 호스트에서 서비스를 생성하면 다음과 같은 오류가 발생한다.
 
 ## Swarm에서 서비스 검사하기
 
@@ -266,30 +267,21 @@ ubuntu@ip-:~$ docker service inspect helloworld
 ]
 ```
 
-- 서비스의 세부 정보를 볼 수 있다.
+- `docker service inspect --pretty {service_name}` 명령어 입력 시 서비스의 세부 정보를 볼 수 있다.
 - `--pretty` 옵션을 제거하면 json 형식으로 반환한다.
 
 ```bash
 ubuntu@ip-:~$ docker service ps helloworld
-ID             NAME           IMAGE           NODE              DESIRED STATE   CURRENT STATE            ERROR     PORTS
-dgeqqpgl329w   helloworld.1   alpine:latest   ip-               Running         Running 11 minutes ago
+ID             NAME           IMAGE           NODE             DESIRED STATE   CURRENT STATE                ERROR     PORTS
+xr6gphsn80x6   helloworld.1   alpine:latest   docker-swarm-1   Running         Running about a minute ago
 ```
 
-- 서비스를 실행중인 노드를 확인할 수 있다.
-- 기본적으로 Swarm 관리자 노드는 워커 노드처럼 작업을 실행할 수 있다.
+- `docker service ps {service_name}` 명령어 입력 시 서비스를 실행중인 노드를 확인할 수 있다.
 
 ```bash
-Error response from daemon: This node is not a swarm manager. 
-Worker nodes can't be used to view or modify cluster state. 
-Please run this command on a manager node or promote the current node to a manager.
-```
-
-- 만약 워커 호스트에서 서비스를 생성하면 다음과 같은 오류가 발생한다.
-
-```bash
-ubuntu@ip-:~$ docker ps
+ubuntu@docker-swarm-1:~$ docker ps
 CONTAINER ID   IMAGE           COMMAND             CREATED         STATUS         PORTS     NAMES
-6bd3b81b0e9d   alpine:latest   "ping docker.com"   4 minutes ago   Up 4 minutes             helloworld.1.a4vzxy4vqouxp6km0kqwbnc68
+84c745434f77   alpine:latest   "ping docker.com"   5 minutes ago   Up 5 minutes             helloworld.1.xr6gphsn80x6sne1gw7dpqan4
 ```
 
 - 해당 작업을 실행중인 노드에서 `docker ps`를 실행하면 해당 작업의 세부 정보를 확인할 수 있다.
@@ -297,27 +289,37 @@ CONTAINER ID   IMAGE           COMMAND             CREATED         STATUS       
 ## Swarm에서 서비스 확장하기
 
 ```bash
-ubuntu@ip-:~$ docker service scale hello=3
-helloworld scaled to 3
-overall progress: 3 out of 3 tasks 
-1/3: running   [==================================================>] 
-2/3: running   [==================================================>] 
-3/3: running   [==================================================>] 
+ubuntu@ip-:~$ docker service scale helloworld=5
+helloworld scaled to 5
+overall progress: 5 out of 5 tasks 
+1/5: running   
+2/5: running   
+3/5: running   
+4/5: running   
+5/5: running   
 verify: Service converged
 ```
 
-- `docker service scale` 명령어를 사용하면 배포된 서비스의 레플리카 수를 조정할 수 있다.
+- `docker service scale` 명령어를 사용하면 **배포된 서비스의 레플리카 수를 조정할 수 있다.**
 
 ```bash
 ubuntu@ip-:~$ docker service ps helloworld
-ID             NAME               IMAGE           NODE              DESIRED STATE   CURRENT STATE            ERROR                              PORTS
-a4vzxy4vqoux   helloworld.1       alpine:latest   ip-               Running         Running 2 hours ago                                         
-dgeqqpgl329w    \_ helloworld.1   alpine:latest   ip-               Shutdown        Failed 2 hours ago       "No such container: helloworld…"   
-n4b623sieipy   helloworld.2       alpine:latest   ip-               Running         Running 38 seconds ago                                      
-dv6kdbneyykd   helloworld.3       alpine:latest   ip-               Running         Running 38 seconds ago
+ID             NAME           IMAGE           NODE              DESIRED STATE   CURRENT STATE            ERROR     PORTS
+xr6gphsn80x6   helloworld.1   alpine:latest   docker-swarm-1    Running         Running 7 minutes ago              
+as2oomtuoxqy   helloworld.2   alpine:latest   docker-swarm-3    Running         Running 37 seconds ago             
+nqtryz8kpe9t   helloworld.3   alpine:latest   docker-swarm-2   Running         Running 36 seconds ago             
+h77a77vek40e   helloworld.4   alpine:latest   docker-swarm-2   Running         Running 36 seconds ago             
+z88qhti23kao   helloworld.5   alpine:latest   docker-swarm-1    Running         Running 41 seconds ago
 ```
 
-- `docker service ps ${service_name}`를 입력하면 업데이트된 작업 목록을 볼 수 있다.
+- `docker service ps ${service_name}`를 입력하면 각 노드마다 업데이트된 작업 목록을 볼 수 있다.
+
+```bash
+ubuntu@docker-swarm-1:~$ docker ps
+CONTAINER ID   IMAGE           COMMAND             CREATED              STATUS              PORTS     NAMES
+91b1c24deb3f   alpine:latest   "ping docker.com"   About a minute ago   Up About a minute             helloworld.5.z88qhti23kaobp878e27ievnx
+84c745434f77   alpine:latest   "ping docker.com"   8 minutes ago        Up 8 minutes                  helloworld.1.xr6gphsn80x6sne1gw7dpqan4
+```
 
 ## 발생했던 오류
 
